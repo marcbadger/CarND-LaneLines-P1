@@ -1,53 +1,52 @@
-#**Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+# **Finding Lane Lines on the Road** 
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
-
-Overview
 ---
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
+[//]: # (Image References)
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
+[blurredGrayscaleExamples]: ./examples/blurredGrayscaleExamples.png "Original (left) and blurred grayscale images (right)"
+[pipelineOutputs]: ./examples/pipelineOutputs.png "Pipeline intermediate outputs"
+[solidWhiteRight]: ./examples/solidWhiteRight.gif "Final output of the lane line pipeline"
+[solidYellowLeft]: ./examples/solidYellowLeft.gif "Final output of the lane line pipeline"
+[challenge_straight_lines]: ./examples/challenge_straight_lines.gif "Performance on the challenge video"
 
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
-
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
-
-
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
-
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
-
-
-The Project
 ---
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+### Reflection
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
+### 1. Description of pipeline
 
-**Step 2:** Open the code in a Jupyter Notebook
+My pipeline consisted of the following steps: creating an image mask to eliminate background noise, finding edges and lines within a region of interest, classifying lines into right and left groups, fitting a single lane line to each group and drawing it on the image.
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
+I created the image mask by converting to the HLS color space, which allows one to easily select a range of colors, lightnesses, and saturations.  For example, yellow colors can be selected using the range [180-255, 180-255, 50-150]  (i.e. yellow hue of most brightnesses and saturations) and white colors can be selected using the range [0-255, 200-255, 0-255] (i.e. any color of sufficient brightness).  I then returned a blurred, grayscale image where the selected areas were unchanged, but all other regions were colored black:
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+![alt text][blurredGrayscaleExamples]
 
-`> jupyter notebook`
+I found edges and lines in the image using the provided helper functions.  I played around with different minimum line lengths and maximum line gaps and settled on 30 for minimum line length and 60 for maximum line gap.  Having minimum line length be too small created too many false positivies, but having minimum line length too large prevented lanes from being found when the majority of the visible line is made up of the short road refelectors rather than paint stripes.
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+![alt text][pipelineOutputs]
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
+I classified detected lines into left and right groups using slope criteria.  I assumed lines belonging to the left lane line had slopes between 0.3 and 0.8 and those for the right lane line between -0.3 and -0.8.  Note that this method caused some trouble on the curved road in the challenge video! I then filtered the lines around the median, returning a subset of the lines that fell within 0.05 of the median slope and 50 pixels of the median intercept.  I then experimented with fitting a line, quadratic, or spline to the filtered lines.  I found that the linear fit did a pretty good job of highlighting the lanelines.  A quadratic fit or a spline with a slope prior near the bottom of the screen would allow for curved lane lines.  Finally, I drew line segments between the fitted points on the original image.  When drawing the lane lines, I started the line at the bottom of the image and extended the line upward to the last detected line segment (rather than to a fixed height on the image or the furthest visible point of the road).  Although this makes the line appear to jump up outward on the road in spurts, I feel showing the lines this way more accurately reflects the data going into the line calculation.  The output of my pipeline on the "solidWhiteRight" and "solidYellowLeft" videos is shown below.
+
+![alt_text][solidWhiteRight]
+![alt_text][solidYellowLeft]
+
+### 2. Identify potential shortcomings with your current pipeline
+
+By far, the biggest shortcoming of this pipeline is that it is extremely difficult and time consuming to hand-tune the hyperparameters.  Finding a set of values that worked for even the five example images was somewhat difficult because tweaking the parameters for one example image "broke" the results of a previous example image.  Having an labeled "training set" with which to find good ranges for the hyperparameters would be very helpful - you can see why the machine/deep learning paradigm has completely taken over!
+
+Another shortcoming of my pipeline is the region of interest.  If the road curves a lot, if the car is going up or down a hill, or if the car is changing lanes, the lines will go outside the region of interest I used.  I found that a more exapansive region of interest lead to too many false positives in the raw lines step, preventing accurate selection of the left and right groups of lines.
+
+To find left and right lane lines, I used a simple slope range criteria and then removed lines that were not within 0.05 of the median slope and within 50 of the median intercept. Median filtering is a very basic way of filtering out bad lines. A more robust method would be to fit a surface to the joint distribution of slopes and intercepts and take the two largest peaks that satisfy certain distance and prominance requirements.  Selecting lane lines based on a surface would allow better lane line detection during curved road segments.  Lane segments in the upper section of the image have a shallower slope than do those nearer the car.  This discrepancy makes the output of my pipeline jump around when I ran it on the challenge video, as seen below.
+
+![alt_text][challenge_straight_lines]
+
+
+### 3. Suggest possible improvements to your pipeline
+
+One potential improvement would be to iteratively find the lane lines starting from nearer to the car, eliminating the need for a region of interest. For example you could do a first pass to come up with a guess for where the lines nearest the car are.  Then fit a polynomial to the line nearest the car and search for more line segments of the correct color by extrapolaing the fitted line as you move upward in the image.  I think this is going on to some extent in our brains/eyes if I told you to point out the furthest visible point on a lane line.  Iterative lane-finding would potentially allow for lines to be identified further from the car and also more accurately determine the curvature of the lines.
+
+A nother potential improvement would be to use a Kalman filter to smooth lane lines from frame to frame so that the occasional frame with incorrect lines doesn't have as much of an affect.
+
+I wonder to what extent Canny edge detectors and Hough transforms are still used in today's vision pipelines in industry.  Based on the trouble I've had tuning hyper-parameters and the possibility that a given region cannot be labeled using color or position alone, it seems likely that semantic segmentation or other deep learning methods will be needed to incorporate larger scale structure (such as other parked or moving cars, road barriers, trees, surface geometry and texture, etc.), when deciding where the lane is.  If I was making a decision about the vision pipeline of a real self-driving car, I would probably only view my pipeline as perhaps a tool to create labled video with wich to train neural networks.
 
